@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Card Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+    /* Basic Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: scroll;
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height:100vh;
+}
+
+.game-container {
+    
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    max-width: 600px;
+    width: 90%;
+}
+
+h1 {
+    margin-bottom: 10px;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+p {
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+#rules {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+#rules ul {
+    list-style-type: disc;
+    padding-left: 20px;
+}
+
+.hidden {
+    display: none;
+}
+
+.score-board {
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.card {
+    width: 100%;
+    aspect-ratio: 1; /* Make cards square */
+    background: #fff;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: transform 0.5s;
+    position: relative;
+}
+
+.card.flipped {
+    transform: rotateY(180deg);
+}
+
+.card .front,
+.card .back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.card .front {
+    background: #ffcc00;
+    transform: rotateY(180deg);
+}
+
+.card .back {
+    background: #007bff;
+    color: #fff;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    background: #4caf50;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    margin: 5px;
+}
+
+button:hover {
+    background: #45a049;
+}
+
+button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 480px) {
+    .card {
+        font-size: 1.5rem;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    p {
+        font-size: 1rem;
+    }
+}
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Memory Card Game</h1>
+        <p>Find three the matching pairs!</p>
+        <div id="rules">
+            <p><strong>Rules:</strong></p>
+            <ul>
+                <li>Click on a card to flip it.</li>
+                <li>Match two cards with the same emoji.</li>
+                <li>You have 5 attempts to find 3 matches.</li>
+                <li>If you don't find 3 matches in 5 attempts, you lose!</li>
+            </ul>
+        </div>
+        <button id="startButton">Start Game</button>
+        <div id="gameContent" class="hidden">
+            <div class="score-board">
+                <p>Attempts: <span id="attempts">0</span></p>
+                <p>Matches Found: <span id="matches">0</span></p>
+            </div>
+            <div class="card-grid" id="cardGrid"></div>
+            <button id="resetButton">Reset Game</button>
+        </div>
+    </div>
+    <script>
+    const cardGrid = document.getElementById('cardGrid');
+const attemptsDisplay = document.getElementById('attempts');
+const matchesDisplay = document.getElementById('matches');
+const startButton = document.getElementById('startButton');
+const resetButton = document.getElementById('resetButton');
+const gameContent = document.getElementById('gameContent');
+const rules = document.getElementById('rules');
+
+let cards = [];
+let flippedCards = [];
+let attempts = 0;
+let matchedPairs = 0;
+let gameStarted = false;
+
+// Card data (emoji pairs)
+const cardData = ['🍎', '🍎', '🍌', '🍌', '🍇', '🍇', '🍒', '🍒', '🍓', '🍓', '🍉', '🍉'];
+
+// Shuffle the card data
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// Create the card grid
+function createCardGrid() {
+    const shuffledCards = shuffle(cardData);
+    cardGrid.innerHTML = '';
+    shuffledCards.forEach((emoji, index) => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.index = index;
+        card.innerHTML = `
+            <div class="front">${emoji}</div>
+            <div class="back">?</div>
+        `;
+        card.addEventListener('click', flipCard);
+        cardGrid.appendChild(card);
+    });
+}
+
+// Flip a card
+function flipCard() {
+    if (!gameStarted || flippedCards.length === 2 || this.classList.contains('flipped')) return;
+
+    this.classList.add('flipped');
+    flippedCards.push(this);
+
+    if (flippedCards.length === 2) {
+        attempts++;
+        attemptsDisplay.textContent = attempts;
+        checkForMatch();
+    }
+}
+
+// Check if flipped cards match
+function checkForMatch() {
+    const [card1, card2] = flippedCards;
+    const emoji1 = card1.querySelector('.front').textContent;
+    const emoji2 = card2.querySelector('.front').textContent;
+
+    if (emoji1 === emoji2) {
+        matchedPairs++;
+        matchesDisplay.textContent = matchedPairs;
+        if (matchedPairs === 3) {
+            setTimeout(() => {
+                alert(`You won in ${attempts} attempts!`);
+                resetGame();
+            }, 500);
+        }
+        flippedCards = [];
+    } else {
+        setTimeout(() => {
+            card1.classList.remove('flipped');
+            card2.classList.remove('flipped');
+            flippedCards = [];
+        }, 1000);
+    }
+
+    // Lose condition
+    if (attempts >= 5 && matchedPairs < 3) {
+        setTimeout(() => {
+            alert(`You lost! Try again.`);
+            runPythonScript(); // Call the Python script
+            resetGame();
+        }, 500);
+    }
+}
+
+// Run the Python script
+function runPythonScript() {
+    console.log("You lost the game! Running Python script...");
+
+    // Use Node.js to call the Python script
+    const { exec } = require('child_process');
+    exec('python3 on_lose.py', (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.error(`Stderr: ${stderr}`);
+            return;
+        }
+        console.log(`Python Script Output: ${stdout}`);
+    });
+}
+
+// Show all cards briefly at the start
+function showAllCards() {
+    const allCards = document.querySelectorAll('.card');
+    allCards.forEach(card => card.classList.add('flipped'));
+    setTimeout(() => {
+        allCards.forEach(card => card.classList.remove('flipped'));
+        gameStarted = true;
+    }, 2000); // Show cards for 2 seconds
+}
+
+// Reset the game
+function resetGame() {
+    attempts = 0;
+    matchedPairs = 0;
+    attemptsDisplay.textContent = attempts;
+    matchesDisplay.textContent = matchedPairs;
+    flippedCards = [];
+    gameStarted = false;
+    startButton.disabled = false;
+    resetButton.disabled = true;
+    gameContent.classList.add('hidden');
+    rules.classList.remove('hidden');
+    createCardGrid();
+}
+
+// Start the game
+startButton.addEventListener('click', () => {
+    gameContent.classList.remove('hidden');
+    rules.classList.add('hidden');
+    createCardGrid();
+    showAllCards();
+    startButton.disabled = true;
+    resetButton.disabled = false;
+});
+
+// Reset the game
+resetButton.addEventListener('click', resetGame);
+
+// Initialize the game
+resetGame();
+    </script> 
+</body>
+</html>
