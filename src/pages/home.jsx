@@ -1,4 +1,4 @@
-import { motion } from "framer-motion"
+import { motion } from "framer-motion" // eslint-disable-line no-unused-vars
 import { FaKey, FaBullseye, FaClock } from "react-icons/fa"
 import { MdCastForEducation } from "react-icons/md";
 import { RiUserCommunityLine } from "react-icons/ri";
